@@ -102,6 +102,7 @@ for (n in 1:dim(Y)[1]){
 # code to run matern model
 if (!file.exists( here::here('output', paste0('polya-gamma-posts_', version, '.RDS')))) {
   
+  start_time <- Sys.time()
   out <- pg_stlm(Y = Y,
                  X = X,
                  locs = locs,
@@ -112,7 +113,12 @@ if (!file.exists( here::here('output', paste0('polya-gamma-posts_', version, '.R
                  corr_fun = "matern",
                  shared_covariance_params = FALSE,
                  inits = inits)
+  stop_time <- Sys.time()
   saveRDS(out, here::here('output', paste0('polya-gamma-posts_', version, '.RDS')),
+          compress = FALSE)
+  
+  runtime <- stop_time - start_time
+  saveRDS(runtime, here::here('output', paste0('polya-gamma-posts_', version, '-runtime.RDS')),
           compress = FALSE)
   
   pushoverr::pushover(message = "Finished fitting Matern model")
