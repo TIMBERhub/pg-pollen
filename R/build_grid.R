@@ -58,9 +58,9 @@ reconst_grid_land <- overlay(reconst_grid, land_resamp, fun = function(x, y) {
 reconst_land_df = raster::as.data.frame(reconst_grid_land, xy=TRUE)
 reconst_land_df = reconst_land_df[which(!is.na(reconst_land_df$layer)),]
 
-locs_grid = reconst_land_df[,1:2]
+locs_grid2 = reconst_land_df[,1:2]
 
-saveRDS(locs_grid, paste0('data/grid_', version, '.RDS'))
+# saveRDS(locs_grid, paste0('data/grid_', version, '.RDS'))
 
 
 # visualize grid

@@ -1,0 +1,12 @@
+# Ignore everything in this directory
+*
+# Except these files
+!.gitignore
+!cross-valdiation/
+!data/
+!matern/
+!matern_latent_overdispersed/
+!matern_overdispersed/
+!MRA
+
+
