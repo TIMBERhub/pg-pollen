@@ -54,14 +54,6 @@ reconst_grid_land <- overlay(reconst_grid, land_resamp, fun = function(x, y) {
   return(x)
 })
 
-# want to work with a data frame, not a raster
-reconst_land_df = raster::as.data.frame(reconst_grid_land, xy=TRUE)
-reconst_land_df = reconst_land_df[which(!is.na(reconst_land_df$layer)),]
-
-locs_grid2 = reconst_land_df[,1:2]
-
-# saveRDS(locs_grid, paste0('data/grid_', version, '.RDS'))
-
 
 # visualize grid
 na_shp <- readOGR("data/map-data/NA_States_Provinces_Albers.shp", "NA_States_Provinces_Albers")
@@ -70,6 +62,21 @@ cont_shp <- subset(na_shp,
                    (NAME_0 %in% c("United States of America", "Mexico", "Canada")))
 lake_shp <- readOGR("data/map-data/Great_Lakes.shp", "Great_Lakes")
 lake_shp <- sp::spTransform(lake_shp, proj)
+
+
+# generate the mask
+reconst_grid_land <- mask(reconst_grid_land, cont_shp)
+reconst_grid_land <- mask(reconst_grid_land, lake_shp, inverse=TRUE)
+
+# want to work with a data frame, not a raster
+reconst_land_df = raster::as.data.frame(reconst_grid_land, xy=TRUE)
+reconst_land_df = reconst_land_df[which(!is.na(reconst_land_df$layer)),]
+
+locs_grid = reconst_land_df[,1:2]
+
+# saveRDS(locs_grid, paste0('data/grid_', version, '.RDS'))
+
+
 
 ggplot(data = locs_grid, aes(x = x, y = y)) + 
   geom_path(data = cont_shp, aes(x = long, y = lat, group = group)) +
