@@ -7,7 +7,7 @@ library(mapproj)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-version = '4.0'  # v4.0 uses the dataset with corrected lookup table
+version = '5.0'  # v4.0 uses the dataset with corrected lookup table
 
 # Get raster masks and spatial domain you want to use
 # (Adam Smith's .tif from: NSF_ABI_2018_2021/data_and_analyses/green_ash/study_region/!study_region_raster_masks)
@@ -29,8 +29,12 @@ long_west = coords@coords[1,1]
 long_east = coords@coords[2,1]
 
 # load pollen data 
-compiled.cores <- read.csv('data/pollen_north_america_ABI_v7.0.csv', stringsAsFactors = FALSE)
-load('data/sites_north_america.rdata')
+# compiled.cores <- read.csv('data/pollen_north_america_ABI_v8.0.csv', stringsAsFactors = FALSE)
+# sites_north_america = read.csv('data/sites_north_america_ABI_v8.0.csv', stringsAsFactors = FALSE)
+compiled.cores <- read.csv('data/pollen_north_america_lc6k2_v8.0.csv', stringsAsFactors = FALSE)
+sites_north_america = read.csv('data/sites_north_america_lc6k2_v8.0.csv', stringsAsFactors = FALSE)
+
+# load('data/sites_north_america.rdata')
 sites.cores = sites_north_america
 compiled.cores = data.frame(long = sites.cores[match(compiled.cores$dataset_id, sites.cores$datasetid), 'longitude'],
                            lat = sites.cores[match(compiled.cores$dataset_id, sites.cores$datasetid), 'latitude'],
@@ -97,7 +101,13 @@ compiled.cores = data.frame(xy, compiled.cores)
 compiled.cores = compiled.cores[,which(colnames(compiled.cores)!= 'optional')]
 
 # remove non-tree taxa
-taxa.nontree <- c('CYPERACEAE')
+# taxa.nontree <- c('CYPERACEAE')
+taxa.nontree <- c('ARTEMISIA', 'ASTERX', 'CHENOPODS', 'POACEAE', 
+                  'AMBROSIA', 'CARYOPHYLL', 'EPHEDRA', 'CYPERACEAE',
+                  'ERICACEX', 'RUMEX', 'APIACEAE', 'BRASSICACEAE', 
+                  'PLANTAGINX', 'SARCOBATUS', 'TAXUS', 'ERIOGONUM',
+                  'PROSOPIS', 'CHRYSOLEP', 'CACTACEAE', 'LARREA')
+                  # 'Cyperaceae', 'Prairie.Forbs', 'Poaceae')
 tree.cores <- compiled.cores[, which(!(colnames(compiled.cores) %in% taxa.nontree))]
 
 # remove sites with no tree pollen counts
@@ -113,7 +123,7 @@ props <- tree.cores[,start_col:ncol(tree.cores)]/rowSums(tree.cores[,start_col:n
 props <- pivot_longer(props, cols = colnames(props), names_to = 'taxon', values_to = 'props')
 props <- props %>% group_by(taxon) %>% summarise(props = sum(props))
 props <- props %>% arrange(desc(props))
-taxa.keep <- props[1:15, ]
+taxa.keep <- props[1:16, ]
 taxa.keep <- as.character(taxa.keep$taxon)
 
 # ASSIGN TIME CHUNKS
