@@ -3,7 +3,7 @@ library(ggplot2)
 library(fields)
 library(rgdal)
 
-version <- '3.1'
+version='5.0'
 
 out <- readRDS(here::here('output', paste0('polya-gamma-posts_', version, '_MRA.RDS')))
 dat <- readRDS(here::here('output', paste0('polya-gamma-dat_', version,'.RDS')))

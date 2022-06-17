@@ -7,7 +7,15 @@ library(mapproj)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-version = '5.0'  # v4.0 uses the dataset with corrected lookup table
+
+# setwd('C:/Users/abrow/Documents/pg-pollen')
+version = '5.0' 
+
+# READ SHAPEFILES AND ESTABLISH SPATIAL DOMAIN
+# USA Contiguous albers equal area
+# OLD PROJECTION
+# proj_out <- '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 
+# +ellps=GRS80 +datum=NAD83 +units=m +no_defs'
 
 # Get raster masks and spatial domain you want to use
 # (Adam Smith's .tif from: NSF_ABI_2018_2021/data_and_analyses/green_ash/study_region/!study_region_raster_masks)
@@ -187,4 +195,4 @@ paleo_locs <- paleo_locs[,c('x','y')]
 
 saveRDS(paleo_dat_array, paste0('data/', 'pollen_dat_', version, '.RDS'))
 saveRDS(paleo_locs, paste0('data/', 'pollen_locs_', version, '.RDS'))
-saveRDS(taxa.keep, paste0('data/', 'taxa_', version, '.RDS'))
+

@@ -3,7 +3,7 @@ library(pgR)
 library(latex2exp)
 
 
-version <- "3.1"
+version='5.0'
 
 out <- readRDS(here::here('output', paste0('polya-gamma-posts_', version, '.RDS')))
 out_overdispersed <- readRDS(here::here('output', paste0('polya-gamma-posts_', version, '_overdispersed.RDS')))

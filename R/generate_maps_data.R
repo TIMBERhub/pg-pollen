@@ -15,17 +15,19 @@ require(rgdal)
 require(raster)
 require(enmSdm)
 require(rgeos)
+library(stringr)
+library(pgR)
 
+version='5.0'
 
-# load the data
-
-version <- '3.1'
+# load the species names
+species_names <- readRDS(here::here('data', paste0('taxa_', version, '.RDS'))) %>%
+    tolower() %>%
+    str_replace("\\.", " ") %>%
+    tools::toTitleCase()
 
 # load the observation data
 dat <- readRDS(here::here('output', paste0('polya-gamma-dat_', version,'.RDS')))
-
-# load the species names
-species_names <- readRDS(here::here('data', 'species-names.RDS'))
 
 # load in the predition grid (to make all plots on the same scale)
 locs_grid <- readRDS(here::here('data', paste0('grid_', version, '.RDS')))
@@ -153,7 +155,7 @@ for (species_to_plot in unique(dat_pollen$species)) {
     
     
     ggsave(p_pollen, 
-           file = paste0("~/pg-pollen/figures/data/observations-", species_to_plot, ".png") ,
+           file = paste0("~/pg-pollen/figures/data/observations-", species_to_plot, "-version-", version, ".png") ,
                # here::here("figures", "data", paste0("observations-", species_to_plot, ".png")), 
            height = 9,
            width = 16)

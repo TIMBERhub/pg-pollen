@@ -35,8 +35,7 @@ plot_trace <- function(out, base_size = 12, file = NULL, width = 16, height = 9)
         p_tau2 <- data.frame(
             tau2      = c(out$tau2),
             iteration = rep(1:nrow(out$tau2)),
-            species = factor(rep(1:ncol(out$tau2), each = nrow(out$tau2)))
-        ) %>%
+            species = factor(rep(1:ncol(out$tau2), each = nrow(out$tau2)))) %>%
             ggplot(aes(x = .data$iteration, y = .data$tau2, group = .data$species, color = .data$species)) +
             geom_line(alpha = 0.75) +
             scale_color_viridis_d(end = 0.8) +
@@ -50,8 +49,7 @@ plot_trace <- function(out, base_size = 12, file = NULL, width = 16, height = 9)
         dimnames(tau2s) <- list(
             iteration  = 1:dim(tau2s)[1],
             resolution = 1:dim(tau2s)[2],
-            species    = 1:dim(tau2s)[3]
-        )
+            species    = 1:dim(tau2s)[3])
         dat_tau2 <- as.data.frame.table(tau2s, responseName = "tau2")
         
         
@@ -86,8 +84,7 @@ plot_trace <- function(out, base_size = 12, file = NULL, width = 16, height = 9)
     dimnames(betas) <- list(
         iteration = 1:dim(out$beta)[1],
         covariate = 1:dim(out$beta)[2],
-        species = 1:dim(out$beta)[3]
-    )
+        species = 1:dim(out$beta)[3])
     p_beta <- as.data.frame.table(betas, responseName = "beta") %>%
     # p_beta  <- data.frame(
     #     beta      = c(out$beta),
@@ -109,8 +106,7 @@ plot_trace <- function(out, base_size = 12, file = NULL, width = 16, height = 9)
         dimnames(thetas) <- list(
             iteration = 1:dim(thetas)[1],
             species = 1:dim(thetas)[2],
-            parameter = c("range", "smoothness")
-        )
+            parameter = c("range", "smoothness"))
         
         p_theta <- as.data.frame.table(thetas, responseName = "theta") %>%
             mutate(iteration = as.numeric(iteration)) %>%
@@ -150,7 +146,7 @@ plot_trace <- function(out, base_size = 12, file = NULL, width = 16, height = 9)
         if (class(out) %in% c("pg_stlm", "pg_stlm_overdispersed", "pg_stlm_latent_overdispersed")) {
             return((p_tau2  + p_theta) / (p_beta + p_rho))
         } else {
-            return((p_tau2 + p_sigma2) / (p_rho + p_beta))
+            return((p_tau2 + p_theta + p_sigma2) / (p_beta + p_rho))
         }
     } else {
         if (class(out) %in% c("pg_stlm", "pg_stlm_overdispersed", "pg_stlm_latent_overdispersed")) {
@@ -162,7 +158,7 @@ plot_trace <- function(out, base_size = 12, file = NULL, width = 16, height = 9)
                    units = "in")
         } else {
             ggsave(filename = file,
-                   plot = (p_tau2 + p_sigma2) / (p_rho + p_beta),
+                   plot = (p_tau2 + p_theta + p_sigma2) / (p_beta + p_rho),
                    device = "png",
                    width = width,
                    height = height,
