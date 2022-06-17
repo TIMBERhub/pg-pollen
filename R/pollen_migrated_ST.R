@@ -12,7 +12,7 @@ library(dplyr)
 library(tidyr)
 
 # setwd('C:/Users/abrow/Documents/pg-pollen')
-version = '3.1'  # v. 3.1 is where we use time bins parallel to those of ABC, ENM
+version = '5.0' 
 
 # READ SHAPEFILES AND ESTABLISH SPATIAL DOMAIN
 # USA Contiguous albers equal area
@@ -277,8 +277,8 @@ for (i in 1:n_times){
 }
 paleo_locs <- paleo_locs[,c('x','y')]
 
-saveRDS(paleo_dat_array, paste0('data/', 'paleo_pollen_dat_', version, '.RDS'))
-saveRDS(paleo_locs, paste0('data/', 'paleo_pollen_locs_', version, '.RDS'))
+saveRDS(paleo_dat_array, paste0('data/', 'pollen_dat_', version, '.RDS'))
+saveRDS(paleo_locs, paste0('data/', 'pollen_locs_', version, '.RDS'))
 
 
 

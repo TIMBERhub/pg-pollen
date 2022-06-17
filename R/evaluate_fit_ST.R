@@ -4,10 +4,11 @@ library(fields)
 library(rgdal)
 library(loo)
 library(tidyverse)
+library(xtable)
 
 source(here::here("R", "xtable_print_bold.R"))
 
-version <- '3.1'
+version='5.0'
 dat <- readRDS(here::here('output', paste0('polya-gamma-dat_', version,'.RDS')))
 
 # check the Matern model -------------------------------------------------------
@@ -178,10 +179,16 @@ dat_scores %>%
     slice(match(c("matern", "overdispersed", "latent"), model)) %>%
     # reorder columns
     select(model, everything()) %>%
-    xtable(caption = "WAIC results") %>%
+    rename("Model" = model,
+           "$pWAIC_1$" = pWAIC,
+           "$pWAIC_2$" = pWAIC1) %>%
+    mutate(Model = stringr::str_to_title(Model)) %>%
+    xtable(caption = "WAIC results", label = "tab:WAIC",) %>%
     printbold(each = "column", max = c(NA, FALSE, rep(NA, 3)), type = "latex",
               file = here::here("tables", "WAIC.tex"), 
-              include.rownames = FALSE)
+              include.rownames = FALSE,
+              # make the columns stay in math mode
+              sanitize.colnames.function=function(x){x})
 
 
 

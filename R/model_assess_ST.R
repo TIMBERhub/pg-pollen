@@ -7,7 +7,7 @@ library(rgdal)
 library(raster)
 library(fields)
 
-version <- '3.0'
+version <- '5.0'
 
 # dir.create(file.path('figures'), showWarnings = FALSE)
 

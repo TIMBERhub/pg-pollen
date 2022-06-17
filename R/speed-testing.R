@@ -22,12 +22,15 @@ library(data.table)
 # install.packages("/home/adawson/Documents/projects/pgR", repos=NULL, type="source")
 library(pgR)
 
-version='3.1'  # v. 3.1 uses same time bins as ABC, ENM, and uses updated priors
+version='5.0'
 
-#### DATA PREP ####
-y <- readRDS(here::here('data', paste0('paleo_pollen_dat_', version, '.RDS')))
-taxa.keep <- readRDS(here::here('data', paste0('pollen_taxa_', version, '.RDS')))
-locs <- readRDS(here::here('data', paste0('paleo_pollen_locs_', version, '.RDS')))
+#### DATA PREP #### -- renamed version 5.0
+# y <- readRDS(here::here('data', paste0('paleo_pollen_dat_', version, '.RDS')))
+# taxa.keep <- readRDS(here::here('data', paste0('pollen_taxa_', version, '.RDS')))
+# locs <- readRDS(here::here('data', paste0('paleo_pollen_locs_', version, '.RDS')))
+y <- readRDS(here::here('data', paste0('pollen_dat_', version, '.RDS')))
+taxa.keep <- readRDS(here::here('data', paste0('taxa_', version, '.RDS')))
+locs <- readRDS(here::here('data', paste0('pollen_locs_', version, '.RDS')))
 rescale <- 1e3
 
 #### RUNNING THE MODEL & SAVING OUTPUT####

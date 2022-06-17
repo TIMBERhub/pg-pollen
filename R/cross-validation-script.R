@@ -39,12 +39,15 @@ library(pgR)
 
 source(here::here("R", "xtable_print_bold.R"))
 
-version='3.1'  # v. 3.1 uses same time bins as ABC, ENM, and uses updated priors
+version='5.0'
 
-#### DATA PREP ----------------------------------------------------------------
-y <- readRDS(here::here('data', paste0('paleo_pollen_dat_', version, '.RDS')))
-taxa.keep <- readRDS(here::here('data', paste0('pollen_taxa_', version, '.RDS')))
-locs <- readRDS(here::here('data', paste0('paleo_pollen_locs_', version, '.RDS')))
+#### DATA PREP #### -- renamed version 5.0
+# y <- readRDS(here::here('data', paste0('paleo_pollen_dat_', version, '.RDS')))
+# taxa.keep <- readRDS(here::here('data', paste0('pollen_taxa_', version, '.RDS')))
+# locs <- readRDS(here::here('data', paste0('paleo_pollen_locs_', version, '.RDS')))
+y <- readRDS(here::here('data', paste0('pollen_dat_', version, '.RDS')))
+taxa.keep <- readRDS(here::here('data', paste0('taxa_', version, '.RDS')))
+locs <- readRDS(here::here('data', paste0('pollen_locs_', version, '.RDS')))
 rescale <- 1e3
 
 locs_scaled <- locs/rescale
@@ -54,20 +57,20 @@ X <- matrix(rep(1, N_locs_dat),N_locs_dat, 1)
 # setup cross-validation ------------------------------------------------------
 
 set.seed(2021)
-K <- 5
+K <- 8
 total_obs <- dim(y)[1] * dim(y)[3]
 # make sure this is an exact integer (which it is in our case -- could be more general but is not needed)
 n_cv <- total_obs / K
 
-if (file.exists(here::here("output", "cross-validate", "cv_idx.RData"))) {
-    load(here::here("output", "cross-validate", "cv_idx.RData"))
+if (file.exists(here::here("output", "cross-validate", paste0("cv_idx_", version, ".RData")))) {
+    load(here::here("output", "cross-validate", paste0("cv_idx_", version, ".RData")))
 } else {
     cv_idx <- matrix(sample(1:total_obs), n_cv, K)
     obs_idx <- expand_grid(row_id = 1:dim(y)[1], col_id = 1:dim(y)[3])
-    save(cv_idx, obs_idx, file = here::here("output", "cross-validate", "cv_idx.RData"))
+    save(cv_idx, obs_idx, file = here::here("output", "cross-validate", paste0("cv_idx_", version, ".RData")))
 }
 
-# fit the Matern model for each of the K folds --------------------------------
+# fit the model for each of the K folds --------------------------------
 
 for (k in 1:K) {
     # set up the cross-validation
@@ -82,7 +85,7 @@ for (k in 1:K) {
     
     params <- default_params()
     params$n_adapt <- 2000
-    params$n_mcmc <- 5000
+    params$n_mcmc <- 6000
     params$n_message <- 100
     params$n_thin <- 5
     priors <- default_priors_pg_stlm(y_train, X, corr_fun = "matern")
@@ -114,7 +117,7 @@ for (k in 1:K) {
     n_chain = 1
     
     if (!file.exists( here::here('output', 'cross-validate' , paste0('matern-cv-', k, '.RData')))) {
-        
+
         out <- pg_stlm(Y = y_train,
                        X = X,
                        locs = locs,
@@ -125,10 +128,10 @@ for (k in 1:K) {
                        corr_fun = "matern",
                        shared_covariance_params = FALSE,
                        inits = inits)
-        save(out, y_train, y_test, obs_fold, 
+        save(out, y_train, y_test, obs_fold,
              file = here::here('output', 'cross-validate' , paste0('matern-cv-', k, '.RData')),
              compress = FALSE)
-        
+
         pushoverr::pushover(message = paste0("Finished fitting Matern model for fold ", k, " out of ", K))
     }
     
@@ -170,32 +173,32 @@ for (k in 1:K) {
         pushoverr::pushover(message = paste0("Finished fitting Latent model for fold ", k, " out of ", K))
     }
     
-    if (!file.exists( here::here('output', 'cross-validate' , paste0('mra-cv-', k, '.RData')))) {
-        
-        
-        inits <- list(
-            beta  = t(mvnfast::rmvn(J-1, priors$mu_beta, priors$Sigma_beta)),
-            # tau2  = rgamma(J-1, priors$alpha_tau, priors$beta_tau),
-            theta = mvnfast::rmvn(J-1, theta_mean, theta_var),
-            rho = rep(0.8, J-1)  # changed from runif(1, 0, 1) to 0.8 on 6/29
-        )
-        
-        out <- pg_stlm_mra(Y = y_train,
-                       X = X,
-                       locs = locs,
-                       params,
-                       priors,
-                       n_cores = n_cores,
-                       M             = 3,
-                       n_coarse_grid = 10,
-                       n_chain = n_chain,
-                       inits = inits)
-        save(out, y_train, y_test, obs_fold, 
-             file = here::here('output', 'cross-validate' , paste0('mra-cv-', k, '.RData')),
-             compress = FALSE)
-        
-        pushoverr::pushover(message = paste0("Finished fitting MRA model for fold ", k, " out of ", K))
-    }
+    # if (!file.exists( here::here('output', 'cross-validate' , paste0('mra-cv-', k, '.RData')))) {
+    #     
+    #     
+    #     inits <- list(
+    #         beta  = t(mvnfast::rmvn(J-1, priors$mu_beta, priors$Sigma_beta)),
+    #         # tau2  = rgamma(J-1, priors$alpha_tau, priors$beta_tau),
+    #         theta = mvnfast::rmvn(J-1, theta_mean, theta_var),
+    #         rho = rep(0.8, J-1)  # changed from runif(1, 0, 1) to 0.8 on 6/29
+    #     )
+    #     
+    #     out <- pg_stlm_mra(Y = y_train,
+    #                        X = X,
+    #                        locs = locs,
+    #                        params,
+    #                        priors,
+    #                        n_cores = n_cores,
+    #                        M             = 3,
+    #                        n_coarse_grid = 10,
+    #                        n_chain = n_chain,
+    #                        inits = inits)
+    #     save(out, y_train, y_test, obs_fold, 
+    #          file = here::here('output', 'cross-validate' , paste0('mra-cv-', k, '.RData')),
+    #          compress = FALSE)
+    #     
+    #     pushoverr::pushover(message = paste0("Finished fitting MRA model for fold ", k, " out of ", K))
+    # }
 }
 
 
@@ -229,7 +232,7 @@ for (k in 1:K) {
     # generate trace plots for matern model
     load( here::here('output', 'cross-validate' , paste0('matern-cv-', k, '.RData')))
     plot_trace(out, base_size = 7, file = here::here("figures", "cross-validation", paste0("matern-trace-plots-", k, ".png")))
-    plot_trace_latent
+    # plot_trace_latent
     
     # generate trace plots for overdispesed model
     load( here::here('output', 'cross-validate' , paste0('overdispersed-cv-', k, '.RData')))
@@ -237,7 +240,11 @@ for (k in 1:K) {
     
     # generate trace plots for latent model
     load( here::here('output', 'cross-validate' , paste0('latent-cv-', k, '.RData')))
-    plot_trace(out, base_size = 7, file = here::here("figures", "cross-validation", paste0("latent-trace-plots-", k, ".png")))    
+    plot_trace(out, base_size = 7, file = here::here("figures", "cross-validation", paste0("latent-trace-plots-", k, ".png")))
+    
+    # generate trace plots for latent model
+    load( here::here('output', 'cross-validate' , paste0('mra-cv-', k, '.RData')))
+    plot_trace(out, base_size = 7, file = here::here("figures", "cross-validation", paste0("mra-trace-plots-", k, ".png")))    
     
     
     
@@ -314,6 +321,21 @@ for (k in 1:K) {
              row_id, col_id,
              file = here::here('output', 'cross-validate' , paste0('predictive-ll-latent-cv-', k, '.RData')))
     }
+    
+    if (!file.exists( here::here('output', 'cross-validate' , paste0('predictive-ll-mra-cv-', k, '.RData')))) {
+        load( here::here('output', 'cross-validate' , paste0('mra-cv-', k, '.RData')))
+        
+        ll_mra_raw <- calc_ll_pg_stlm(y_test, X, out)
+        # drop the NAs and add in row/column id
+        ll_mra <- matrix(NA, dim(ll_mra_raw$ll)[1], length(row_id))
+        for (i in 1:length(row_id)) {
+            ll_mra[, i] <- ll_mra_raw$ll[, row_id[i], col_id[i]]
+        }
+        
+        save(ll_mra_raw, ll_mra,
+             row_id, col_id,
+             file = here::here('output', 'cross-validate' , paste0('predictive-ll-mra-cv-', k, '.RData')))
+    }
 }
 
 # process the cross-validation predictive likelihoods -------------------------
@@ -368,12 +390,27 @@ if (file.exists( here::here('output', 'cross-validate', 'predictive-ll.RData')))
                     row_id = row_id,
                     col_id = col_id), by = "obs_idx")
         
-        dat_ll <- rbind(dat_ll, do.call("rbind", list(dat_matern, dat_overdispersed, dat_latent)))
+        # extract the MRA model predictive log-likelihood
+        load(here::here('output', 'cross-validate' , paste0('predictive-ll-mra-cv-', k, '.RData')))
+        dimnames(ll_mra) <- list(iteration = 1:nrow(ll_mra),
+                                    obs_idx = 1:ncol(ll_mra))
+        dat_mra <- as.data.frame.table(ll_mra, responseName = 'll') %>%
+            mutate(model = "mra", 
+                   fold = k, 
+                   iteration = as.numeric(iteration), 
+                   obs_idx = as.numeric(obs_idx)) %>% 
+            left_join(
+                data.frame(
+                    obs_idx = 1:ncol(ll_mra),
+                    row_id = row_id,
+                    col_id = col_id), by = "obs_idx")
+        
+        dat_ll <- rbind(dat_ll, do.call("rbind", list(dat_matern, dat_overdispersed, dat_latent, dat_mra)))
     }
     save(dat_ll, file = here::here('output', 'cross-validate' , 'predictive-ll.RData'))
 }
 
-
+# tables without MRA model
 dat_ll %>%
     group_by(model) %>%
     summarize(mean_ll = mean(ll), 
@@ -384,13 +421,20 @@ dat_ll %>%
               ci_upper = mean_ll + 1.96 * sd_ll / sqrt(n/1000)) %>%
     # reorder rows
     slice(match(c("matern", "overdispersed", "latent"), model)) %>%
-    select(-n) %>%
+    dplyr::select(-n) %>%
+    rename("Model" = model,
+           "Log-like mean" = mean_ll, 
+           "Log-like median" = median_ll, 
+           "Log-like sd" = sd_ll,
+           "Lower CI" = ci_lower,
+           "Upper CI" = ci_upper) %>%
+    mutate(Model = stringr::str_to_title(Model)) %>%
     xtable(caption = "Cross-validation results") %>%
     printbold(each = "column", max = c(NA, TRUE, TRUE, rep(NA, 3)), type = "latex",
               file = here::here("tables", "cross-validation-ll.tex"), 
               include.rownames = FALSE)
 
-
+# tables without MRA model
 dat_ll %>%
     group_by(model, fold) %>%
     summarize(mean_ll_fold = mean(ll), 
@@ -404,10 +448,16 @@ dat_ll %>%
               ci_lower = mean_ll + qt(0.025, df = n-1) * sd_ll / sqrt(n),
               ci_upper = mean_ll + qt(0.975, df = n-1) * sd_ll / sqrt(n)) %>%
     ungroup() %>%
-    select(-n) %>%
+    dplyr::select(-n) %>%
     # reorder rows
     slice(match(c("matern", "overdispersed", "latent"), model)) %>%
-    xtable(caption = "Cross-validation results") %>%
+    rename("Model" = model,
+           "Log-like (mean)" = mean_ll, 
+           "Log-like (sd)" = sd_ll,
+           "Lower CI" = ci_lower,
+           "Upper CI" = ci_upper) %>%
+    mutate(Model = stringr::str_to_title(Model)) %>%
+    xtable(caption = "Cross-validation results", label = "tab:cv-fold") %>%
     printbold(each = "column", max = c(NA, TRUE, rep(NA, 3)), type = "latex",
               file = here::here("tables", "cross-validation-fold.tex"), 
               include.rownames = FALSE)
@@ -444,11 +494,19 @@ p3 <- dat_ll %>%
     group_by(obs_idx, fold, model) %>%
     summarize(mean_ll = mean(ll)) %>%
     pivot_wider(names_from = c(model), values_from = mean_ll) %>%
-    ggplot(aes(x = matern, y = overdispersed)) +
+    ggplot(aes(x = matern, y = latent)) +
     geom_point(alpha = 0.1) +
     geom_abline(slope = 1, intercept = 0, color = "red", alpha = 0.5)
 
-p0 / (p1 + p2 + p3)
+p4 <- dat_ll %>%
+    group_by(obs_idx, fold, model) %>%
+    summarize(mean_ll = mean(ll)) %>%
+    pivot_wider(names_from = c(model), values_from = mean_ll) %>%
+    ggplot(aes(x = matern, y = mra)) +
+    geom_point(alpha = 0.1) +
+    geom_abline(slope = 1, intercept = 0, color = "red", alpha = 0.5)
+
+p0 / (p1 + p2 + p3 + p4)
 
 
 
@@ -506,9 +564,6 @@ hist(rowSums(y_inlier))
 hist(apply(y, c(1, 3), sum), breaks = 100)
 
 # TODO ----
-# plot held-out observations vs. posterior predictive - DONE
-# investigate outlier log-likelhoods - DONE
-# change in binning over time - Alissa will do
 
 
 # predicted vs. fitted values
@@ -615,6 +670,33 @@ for (k in 1:K) {
              row_id, col_id,
              file = here::here('output', 'cross-validate' , paste0('pis-latent-cv-', k, '.RData')))
     }
+    
+    if (!file.exists( here::here('output', 'cross-validate' , paste0('pis-mra-cv-', k, '.RData')))) {
+        load( here::here('output', 'cross-validate' , paste0('mra-cv-', k, '.RData')))
+        
+        pi_mra <- array(NA, dim = c(dim(out$pi)[1], dim(out$pi)[3], length(row_id)))
+        for (i in 1:length(row_id)) {
+                pi_mra[, , i] <- out$pi[, row_id[i], , col_id[i]]
+        }
+        
+        dimnames(pi_mra) <- list(
+            iteration = 1:dim(pi_mra)[1],
+            species = 1:dim(pi_mra)[2],
+            obs_idx = 1:dim(pi_mra)[3])
+        dat_pi_mra <- as.data.frame.table(pi_mra, responseName = "pi") %>%
+            mutate(iteration = as.numeric(iteration), obs_idx = as.numeric(obs_idx)) %>%
+            left_join(
+                data.frame(
+                    obs_idx = 1:dim(pi_mra)[3],
+                    row_id = row_id,
+                    col_id = col_id), by = "obs_idx") %>% 
+            select(-obs_idx) %>%
+            mutate(model = "mra")
+        
+        save(dat_pi_mra,
+             row_id, col_id,
+             file = here::here('output', 'cross-validate' , paste0('pis-mra-cv-', k, '.RData')))
+    }
 }
 
 
@@ -623,16 +705,19 @@ if (file.exists( here::here('output', 'cross-validate', 'pis-all.RData'))) {
 } else {    
     dat_pis <- data.frame()
     for (k in 1:K) {
-        # extract the Matern model predictive log-likelihood
+        # extract the Matern model predictive proportions
         load(here::here('output', 'cross-validate' , paste0('pis-matern-cv-', k, '.RData')))
 
-        # extract the overdispersed model predictive log-likelihood
+        # extract the overdispersed model predictive proportions
         load(here::here('output', 'cross-validate' , paste0('pis-overdispersed-cv-', k, '.RData')))
 
-        # extract the latent model predictive log-likelihood    
+        # extract the latent model predictive proportions
         load(here::here('output', 'cross-validate' , paste0('pis-latent-cv-', k, '.RData')))
         
-        dat_pis <- rbind(dat_pis, do.call("rbind", list(dat_pi_matern, dat_pi_overdispersed, dat_pi_latent)))
+        # extract the mra model predictive proportions    
+        load(here::here('output', 'cross-validate' , paste0('pis-mra-cv-', k, '.RData')))
+        
+        dat_pis <- rbind(dat_pis, do.call("rbind", list(dat_pi_matern, dat_pi_overdispersed, dat_pi_latent, dat_pi_mra)))
     }
     save(dat_pis, file = here::here('output', 'cross-validate' , 'pis-all.RData'))
 }
@@ -668,9 +753,16 @@ p_fitted
 time_bins <- seq(-285, 21000, by=990)[-1]
 time_vec <- paste(time_bins[1:21], "ybp")
 names(time_vec) <- paste(1:21)
-species_names <- readRDS(here::here('data', 'species-names.RDS'))
-species_names <- str_replace(species_names, "\\.", " \n ")
-names(species_names) <- paste(1:13)
+library(stringr)
+
+version='5.0'
+
+# load the species names
+species_names <- readRDS(here::here('data', paste0('taxa_', version, '.RDS'))) %>%
+    tolower() %>%
+    str_replace("\\.", " ") %>%
+    tools::toTitleCase()
+
 base_size <- 18
 
 
@@ -684,9 +776,10 @@ calibration_matern <- dat_plot %>%
                                    .cols = species_names)) +
     geom_linerange(aes(ymin = pi_lower, ymax = pi_upper)) +
     geom_abline(intercept = 0, slope = 1, col = "red") +
-    ggtitle("Matern model") +
+    ggtitle(expression(paste("Out of sample predicted vs. observed proportions for ", italic("Matern"), 
+                       " model"))) +
     xlab("Observed proportions") +
-    ylab("Estimated proportions") +
+    ylab("Predicted proportions") +
     theme_bw(base_size = base_size) +
     scale_x_continuous(breaks = c(0.25, 0.75)) +
     scale_y_continuous(breaks = c(0.25, 0.75)) +
@@ -697,7 +790,7 @@ calibration_matern <- dat_plot %>%
 
 ggsave(calibration_matern, 
        file = here::here("figures", "matern-calibration.png"),
-       width = 16, height = 9, device = "png", units = "in")
+       width = 16, height = 12, device = "png", units = "in")
 
 calibration_overdispersed <- dat_plot %>%
     filter(model == "overdispersed") %>%
@@ -708,9 +801,10 @@ calibration_overdispersed <- dat_plot %>%
                                    .cols = species_names)) +
     geom_linerange(aes(ymin = pi_lower, ymax = pi_upper)) +
     geom_abline(intercept = 0, slope = 1, col = "red") +
-    ggtitle("Overdispersed model") +
+    ggtitle(expression(paste("Out of sample predicted vs. observed proportions for ", italic("Overdispersed"), 
+    " model"))) +
     xlab("Observed proportions") +
-    ylab("Estimated proportions") +
+    ylab("Predicted proportions") +
     theme_bw(base_size = base_size) +
     scale_x_continuous(breaks = c(0.25, 0.75)) +
     scale_y_continuous(breaks = c(0.25, 0.75)) +  
@@ -721,7 +815,7 @@ calibration_overdispersed <- dat_plot %>%
 
 ggsave(calibration_overdispersed, 
        file = here::here("figures", "overdispersed-calibration.png"),
-       width = 16, height = 9, device = "png", units = "in")
+       width = 16, height = 12, device = "png", units = "in")
 
 
 calibration_latent <- dat_plot %>%
@@ -733,8 +827,9 @@ calibration_latent <- dat_plot %>%
                                    .cols = species_names)) +
     geom_linerange(aes(ymin = pi_lower, ymax = pi_upper)) +
     geom_abline(intercept = 0, slope = 1, col = "red") +
-    ggtitle("Latent model") +
-    xlab("Latent proportions") +
+    ggtitle(expression(paste("Out of sample predicted vs. observed proportions for ", italic("Latent"), 
+                       " model"))) +
+    xlab("Predicted proportions") +
     ylab("Estimated proportions") +
     theme_bw(base_size = base_size) +
     scale_x_continuous(breaks = c(0.25, 0.75)) +
@@ -747,7 +842,34 @@ calibration_latent <- dat_plot %>%
 
 ggsave(calibration_latent, 
        file = here::here("figures", "latent-calibration.png"),
+       width = 16, height = 12, device = "png", units = "in")
+
+
+# calibration mra
+calibration_mra <- dat_plot %>%
+    filter(model == "mra") %>%
+    ggplot(aes(x = y, y = pi_mean)) +
+    geom_point(alpha = 0.5) +
+    facet_grid(col_id ~ species, 
+               labeller = labeller(.rows = time_vec,
+                                   .cols = species_names)) +
+    geom_linerange(aes(ymin = pi_lower, ymax = pi_upper)) +
+    geom_abline(intercept = 0, slope = 1, col = "red") +
+    ggtitle("MRA model") +
+    xlab("Observed proportions") +
+    ylab("Estimated proportions") +
+    theme_bw(base_size = base_size) +
+    scale_x_continuous(breaks = c(0.25, 0.75)) +
+    scale_y_continuous(breaks = c(0.25, 0.75)) +
+    theme(strip.text.y.right = element_text(angle = 0),
+          strip.text.x.top = element_text(size = 0.56 * base_size),
+          axis.text.y = element_text(size = 0.5 * base_size))
+
+
+ggsave(calibration_mra, 
+       file = here::here("figures", "mra-calibration.png"),
        width = 16, height = 9, device = "png", units = "in")
+
 
 dat_all <- dat_ll %>%
     group_by(row_id, col_id, model, fold) %>%

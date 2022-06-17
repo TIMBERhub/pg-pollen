@@ -15,12 +15,15 @@ require(rgdal)
 require(raster)
 require(enmSdm)
 require(rgeos)
+library(stringr)
 
-
-version <- '3.1'
+version='5.0'
 
 # load the species names
-species_names <- readRDS(here::here('data', 'species-names.RDS'))
+species_names <- readRDS(here::here('data', paste0('taxa_', version, '.RDS'))) %>%
+    tolower() %>%
+    str_replace("\\.", " ") %>%
+    tools::toTitleCase()
 
 # load the preds data
 preds <- readRDS(here::here("output", paste0('polya-gamma-predictions_', version, '_latent_overdispersed.RDS')))
@@ -54,8 +57,6 @@ dat_pi_sd <- as.data.frame.table(pi_sd, responseName = "pi_sd") %>%
     mutate(location = as.numeric(location), time = as.numeric(time)) %>%
     left_join(locs_grid %>%
                   mutate(location = 1:dim(locs_grid)[1]))
-
-
 
 #### READ MAP DATA ####
 # read raster masks (provides masks for spatial domain/resolution of genetic + ENM data)
@@ -163,9 +164,9 @@ time_vec
 
 # as.character(1:21))
 # time_labeller <- list(
-#     paste(time_bins[1], "ybp") = "1",
 #     paste(time_bins[2], "ybp") = "2", 
 #     paste(time_bins[3], "ybp") = "3",
+#     paste(time_bins[1], "ybp") = "1",
 #     paste(time_bins[4], "ybp") = "4",
 #     paste(time_bins[5], "ybp") = "5",
 #     paste(time_bins[6], "ybp") = "6",  
@@ -190,14 +191,9 @@ base_size <- 14
 
 
 
-
-
-
-# generate the plots
-
 for (species_to_plot in unique(dat_pi_mean$species)) {
     
-    if (!file.exists(here::here("figures", "matern_latent_overdispersed", paste0("predictions-", species_to_plot, "_latent_overdispersed.png")))) {
+    # if (!file.exists(here::here("figures", "matern_latent_overdispersed", paste0("predictions-", species_to_plot, "_latent_overdispersed.png")))) {
         p_mean <- dat_pi_mean %>%
             # filter(species %in% species_to_plot) %>%
             filter(species == species_to_plot) %>%
@@ -211,14 +207,15 @@ for (species_to_plot in unique(dat_pi_mean$species)) {
                          color = 'black', size = .2) +
             facet_wrap(~ time, nrow = 3, labeller = as_labeller(time_vec)) +
             scale_fill_viridis_c() +
-            ggtitle(paste0("Posterior proportion mean ", species_to_plot)) +
+            ggtitle(substitute(paste("Posterior proportion mean of ", italic(x), " for the ", italic("latent"), " model"), list(x = as.character(species_to_plot)))) +
             theme_bw(base_size = base_size) +
             theme(axis.text.x = element_blank(),
                   axis.ticks.x=element_blank(),
                   axis.text.y = element_blank(),
                   axis.ticks.y=element_blank()) +
             xlab("") +
-            ylab("") +         
+            ylab("") +        
+            labs(fill = "p") +
             coord_cartesian(xlim = xlim, ylim = ylim)
         
         p_sd <- dat_pi_sd %>%
@@ -234,7 +231,7 @@ for (species_to_plot in unique(dat_pi_mean$species)) {
                          color = 'black', size = .2) +
             facet_wrap(~ time, nrow = 3, labeller = as_labeller(time_vec)) +
             scale_fill_viridis_c() +
-            ggtitle(paste0("Posterior proportion sd ", species_to_plot)) +
+            ggtitle(substitute(paste("Posterior proportion sd of ", italic(x), " for the ", italic("latent"), " model"), list(x = as.character(species_to_plot)))) +
             theme_bw(base_size = base_size) +
             theme(axis.text.x = element_blank(),
                   axis.ticks.x=element_blank(),
@@ -242,13 +239,12 @@ for (species_to_plot in unique(dat_pi_mean$species)) {
                   axis.ticks.y=element_blank()) +
             xlab("") +
             ylab("") +
+            labs(fill = "sd") +
             coord_cartesian(xlim = xlim, ylim = ylim)
-        scale_fill_viridis_c()
-        
         
         ggsave(p_mean / p_sd, 
-               file = here::here("figures", "matern_latent_overdispersed", paste0("predictions-", species_to_plot, "_latent_overdispersed.png")), 
-               height = 9,
+               file = here::here("figures", "matern_latent_overdispersed", paste0("predictions-", species_to_plot,  "-version-", version, "_latent_overdispersed.png")), 
+               height = 12,
                width = 16)
-    }
+    # }
 }
