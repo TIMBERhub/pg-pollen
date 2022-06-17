@@ -1,7 +1,4 @@
 
-library(neotoma)
-library(analogue)
-library(Bchron)
 library(ggplot2)
 library(data.table)
 library(sp)
@@ -22,6 +19,7 @@ version = '5.0'
 
 # Get raster masks and spatial domain you want to use
 # (Adam Smith's .tif from: NSF_ABI_2018_2021/data_and_analyses/green_ash/study_region/!study_region_raster_masks)
+# "+proj=aea +lat_0=37.5 +lon_0=-96 +lat_1=29.5 +lat_2=45.5 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
 stack <- stack('data/map-data/study_region_daltonIceMask_lakesMasked_linearIceSheetInterpolation.tif')
 proj <- proj4string(stack)
 
@@ -39,12 +37,13 @@ long_west = coords@coords[1,1]
 long_east = coords@coords[2,1]
 
 # load pollen data 
-compiled.cores <- read.csv('data/pollen_north_america_v6.0.csv', stringsAsFactors = FALSE)
-load('data/sites_north_america.rdata')
-load('data/pollen.equiv.rda')
+# compiled.cores <- read.csv('data/pollen_north_america_ABI_v8.0.csv', stringsAsFactors = FALSE)
+# sites_north_america = read.csv('data/sites_north_america_ABI_v8.0.csv', stringsAsFactors = FALSE)
+compiled.cores <- read.csv('data/pollen_north_america_lc6k2_v8.0.csv', stringsAsFactors = FALSE)
+sites_north_america = read.csv('data/sites_north_america_lc6k2_v8.0.csv', stringsAsFactors = FALSE)
 
+# load('data/sites_north_america.rdata')
 sites.cores = sites_north_america
-
 compiled.cores = data.frame(long = sites.cores[match(compiled.cores$dataset_id, sites.cores$datasetid), 'longitude'],
                            lat = sites.cores[match(compiled.cores$dataset_id, sites.cores$datasetid), 'latitude'],
                            compiled.cores)
@@ -64,33 +63,25 @@ ggplot(data = data.frame(map), aes(long, lat)) +
             ylim = c(lat_lo, lat_hi))
 
 # until there's an answer as to why we get age NAs after running 'compile_downloads'...
-# for now just remove rows with age NAs
+# for now just remove rows with age NAs (143 of them as of 17 Sept 2021)
 compiled.cores <- compiled.cores[!is.na(compiled.cores$age), ]
 
-# # translate any dates in radiocarbon years to calendar years
-# radio.years <- (compiled.cores$agetype %in% "Radiocarbon years BP") &
-#   (compiled.cores$age > 95 ) &
-#   (compiled.cores$age < 50193)
-# sryears <- sum(radio.years, na.rm = TRUE)
-# 
-# # BChronCalibrate is in the BChron package:
-# calibrated <- BchronCalibrate(compiled.cores$age[radio.years],
-#                               ageSds = rep(100, sryears),
-#                               calCurves = rep("intcal20", sryears))
-# #  we want the weighted means from "calibrated"
-# wmean.date <- function(x) sum(x$ageGrid*x$densities / sum(x$densities))
-# compiled.cores$age[radio.years] <- sapply(calibrated, wmean.date)
-# # saveRDS(compiled.cores, 'data/compiled_cores_P25_all_times.RDS')
-
-# remove any samples with ages greater than 50000 YBP
+# remove any samples with ages greater than 21500 YBP
 compiled.cores <- compiled.cores[which(compiled.cores$age < 21500), ]
-hist(compiled.cores$age)
 
 # only keep pollen from within domain of interest
 compiled.cores <- compiled.cores[compiled.cores$lat < lat_hi & 
                             compiled.cores$lat > lat_lo & 
                             compiled.cores$long > long_west & 
                             compiled.cores$long < long_east ,]
+
+# remove pollen cores from isolated locations (islands, mexico)
+bermuda <- compiled.cores[compiled.cores$lat < 34 & compiled.cores$long > -78, ]
+# bahamas_cuba <- with(compiled.cores, compiled.cores[lat < 28 & long > -80, ])
+# mexico <- with(compiled.cores, compiled.cores[lat < 23, ])
+# remove.sites <- rbind(bermuda, bahamas_cuba, mexico)
+remove.sites <- bermuda %>% distinct()
+compiled.cores <- compiled.cores[!(compiled.cores$siteid) %in% remove.sites$siteid,]
 
 # visualize subsetted data
 map <- map_data("world")
@@ -106,14 +97,6 @@ ggplot(data = data.frame(map), aes(long, lat)) +
             xlim = c(long_west, -59),
             ylim = c(lat_lo, lat_hi))
 
-# remove pollen cores from isolated locations (islands, mexico)
-bermuda <- compiled.cores[compiled.cores$lat < 34 & compiled.cores$long > -78, ]
-# bahamas_cuba <- with(compiled.cores, compiled.cores[lat < 28 & long > -80, ])
-# mexico <- with(compiled.cores, compiled.cores[lat < 23, ])
-# remove.sites <- rbind(bermuda, bahamas_cuba, mexico)
-remove.sites <- bermuda %>% distinct()
-compiled.cores <- compiled.cores[!(compiled.cores$siteid) %in% remove.sites$siteid,]
-
 # convert projection to proj
 sp::coordinates(compiled.cores) <- ~long+lat
 sp::proj4string(compiled.cores) <- sp::CRS('+init=epsg:4326')
@@ -124,63 +107,41 @@ colnames(xy) = c('x', 'y')
 # construct data frame with re-projected coordinates
 compiled.cores = data.frame(xy, compiled.cores)
 compiled.cores = compiled.cores[,which(colnames(compiled.cores)!= 'optional')]
-# save this for later when you'll need to calculate relative proportions for model validation
-# saveRDS(compiled.cores, 'data/compiled_cores_P25.RDS')
 
 # remove non-tree taxa
-taxa.nontree <- c('Other', 'Prairie.Forbs', 'Poaceae', 'Cyperaceae')
+# taxa.nontree <- c('CYPERACEAE')
+taxa.nontree <- c('ARTEMISIA', 'ASTERX', 'CHENOPODS', 'POACEAE', 
+                  'AMBROSIA', 'CARYOPHYLL', 'EPHEDRA', 'CYPERACEAE',
+                  'ERICACEX', 'RUMEX', 'APIACEAE', 'BRASSICACEAE', 
+                  'PLANTAGINX', 'SARCOBATUS', 'TAXUS', 'ERIOGONUM',
+                  'PROSOPIS', 'CHRYSOLEP', 'CACTACEAE', 'LARREA')
+                  # 'Cyperaceae', 'Prairie.Forbs', 'Poaceae')
 tree.cores <- compiled.cores[, which(!(colnames(compiled.cores) %in% taxa.nontree))]
 
 # remove sites with no tree pollen counts
 # i.e., rows that contain only zeros/NAs across all taxa
-start_col <- which(colnames(tree.cores) == 'Abies')
+start_col <- which(colnames(tree.cores) == 'ageboundyounger') + 1
 tree.cores$sum <- apply(tree.cores[,start_col:ncol(tree.cores)], 1, function(x) sum(x, na.rm=TRUE))
 tree.cores <- tree.cores[tree.cores$sum > 0, ]
 tree.cores <- tree.cores %>% dplyr::select(-sum)
 
 # specify which tree taxa to keep
 # use taxa with highest relative proportions
-props <- tree.cores[,start_col:ncol(tree.cores)]/rowSums(tree.cores[,13:ncol(tree.cores)], na.rm = TRUE)
+props <- tree.cores[,start_col:ncol(tree.cores)]/rowSums(tree.cores[,start_col:ncol(tree.cores)], na.rm = TRUE)
 props <- pivot_longer(props, cols = colnames(props), names_to = 'taxon', values_to = 'props')
 props <- props %>% group_by(taxon) %>% summarise(props = sum(props))
 props <- props %>% arrange(desc(props))
-taxa.keep <- props[1:13, ]
+taxa.keep <- props[1:16, ]
 taxa.keep <- as.character(taxa.keep$taxon)
 
 # ASSIGN TIME CHUNKS
-# Old time chunks: 
-# Modern time = AD 1800 - 2000 (i.e., 150 to -50 YBP)
-# Paleo time = 21,000 - 150 YBP
-
-# New time chunks: 
 # Modern = 1980 AD (to match ENM data) = -30 ybp in pollen data (so add 30 years to age)
-# first time chunk: 210 - 1200 ybp
-# every 990 years for 21 time chunks (until 21000 ybp)
+# first time chunk: -70 to 705 ybp [represents 210 ybp]
+# time 2: 705 - 1695 ybp [1200 ybp] ... etc.
+# every 990 years for 22 time chunks (until (20505, 21495), representing 21000 ybp)
 tree.cores$age <- tree.cores$age + 30
-
-setwd('C:/Users/abrow/Documents/green_ash')
-bins <- read.csv('BV_table_Pollen_nnet_0.1.csv', stringsAsFactors = FALSE)
-bins <- bins %>% tidyr::separate(time, c("timeTo", "timeFrom"))
-bins$timeTo <- as.numeric(bins$timeTo)
-bins$timeFrom <- as.numeric(bins$timeFrom)
-
-
-# MODERN TIME
-modern <- tree.cores[tree.cores$age >= -50 & tree.cores$age < 150, ]
-modern_bins <- seq(-50, 150, by = 50)
-modern_cut <- cut(modern$age, include.lowest = TRUE, breaks = modern_bins)
-modern$cut <- as.integer(modern_cut)
-
-# assign unique ID to each distinct x, y coordinate
-modern_xyid <- modern %>% dplyr::select(x,y) %>% distinct()
-modern_xyid$id <- as.character(seq(1, nrow(modern_xyid), by = 1))
-
-# separate dataframe into list of dataframes, one for each time chunk, remove excess columns
-modern_time <- split(modern, f = modern$cut)
-
-# PALEO TIME
-paleo <- tree.cores[tree.cores$age >= 210, ]
-paleo_bins <- seq(210, 21000, by = 990)
+paleo <- tree.cores[tree.cores$age >= -70, ]
+paleo_bins <- c(-70, seq(705, by = 990, length.out = 22))
 paleo_cut <- cut(paleo$age, include.lowest = TRUE, breaks = paleo_bins)
 paleo$cut <- as.integer(paleo_cut)
 paleo <- paleo[!is.na(paleo$cut),] # remove ages > highest time bin
@@ -192,34 +153,11 @@ paleo_xyid$id <- as.character(seq(1, nrow(paleo_xyid), by = 1))
 # separate dataframe into list of dataframes, one for each time chunk, remove excess columns
 paleo_time <- split(paleo, f = paleo$cut)
 
-
 # CREATE 'OTHER' TAXON BY COMBINING TREE COUNTS FROM TREES NOT BEING MODELED INDIVIDUALLY
 # (if you want to retain 'Other tree' column, you'll need to use length(n_taxa) + 1 in later code)
 # SUM POLLEN COUNTS BY TIME PERIOD/SITE
 # MERGE WITH SITE IDENTIFIER; EACH TIME PERIOD SHOULD HAVE SAME # ROWS (SITES)
 # CONVERT VALUES TO INTEGERS
-
-# MODERN
-n_times <- length(modern_time)
-for(i in 1:n_times){
-  compiled.meta = modern_time[[i]][,c('x', 'y')]
-  compiled.counts = modern_time[[i]][,start_col:(ncol(modern_time[[i]])-1)]
-  compiled.other = compiled.counts[, which((!(colnames(compiled.counts) %in% taxa.keep)) & 
-                                          (!(colnames(compiled.counts) %in% taxa.nontree)))]
-  compiled.counts.sub = data.frame(compiled.counts[, which(colnames(compiled.counts) %in% taxa.keep)],
-                                   Other = rowSums(compiled.other, na.rm=TRUE))
-  modern_time[[i]] = data.frame(compiled.meta, compiled.counts.sub)
-}
-
-for(i in 1:n_times){
-  modern_time[[i]] <- modern_time[[i]] %>% group_by(x, y) %>% summarise_all(.funs = sum, na.rm = TRUE)
-  modern_time[[i]] <- ungroup(modern_time[[i]])
-  modern_time[[i]] <- left_join(modern_xyid, modern_time[[i]], by = c('x','y'))
-  modern_time[[i]][,4:ncol(modern_time[[i]])] <- apply(modern_time[[i]][,4:ncol(modern_time[[i]])], c(1,2), as.integer)
-}
-
-
-# PALEO
 n_times <- length(paleo_time)
 for(i in 1:n_times){
   compiled.meta = paleo_time[[i]][,c('x', 'y')]
@@ -237,32 +175,10 @@ for(i in 1:n_times){
   paleo_time[[i]] <- left_join(paleo_xyid, paleo_time[[i]], by = c('x','y'))
   paleo_time[[i]][,4:ncol(paleo_time[[i]])] <- apply(paleo_time[[i]][,4:ncol(paleo_time[[i]])], c(1,2), as.integer)
 }
-
+taxa.keep <- colnames(paleo_time[[1]])
+taxa.keep <- taxa.keep[!taxa.keep %in% c('x', 'y', 'id')]
 
 # CONSTRUCT DATA LIST, INCLUDING LOCATIONS, INTEGER ARRAY, AND TAXA.KEEP
-
-# MODERN
-modern_locs <- modern_time[[1]][,c('x','y','id')]
-n_locs <- nrow(modern_locs)
-n_taxa <- length(taxa.keep)
-n_times <- length(modern_time)
-
-modern_dat_array <- array(0, dim = c(n_locs, n_taxa, n_times))
-for (i in 1:n_times){
-  for (j in 1:n_locs){
-    site_id = as.numeric(modern_time[[i]]$id[j])
-    modern_dat_array[site_id,,i] = as.numeric(unname(modern_time[[i]][j,4:(4+n_taxa-1)]))
-  }
-}
-modern_locs <- modern_locs[,c('x','y')]
-taxa <- colnames(modern_time[[1]])[4:(4+n_taxa-1)]
-
-saveRDS(modern_dat_array, paste0('data/', 'modern_pollen_dat_', version, '.RDS'))
-saveRDS(modern_locs, paste0('data/', 'modern_pollen_locs_', version, '.RDS'))
-saveRDS(taxa, paste0('data/', 'pollen_taxa_', version, '.RDS'))
-
-
-# PALEO
 paleo_locs <- paleo_time[[1]][,c('x','y','id')]
 n_locs <- nrow(paleo_locs)
 n_times <- length(paleo_time)
@@ -280,40 +196,3 @@ paleo_locs <- paleo_locs[,c('x','y')]
 saveRDS(paleo_dat_array, paste0('data/', 'pollen_dat_', version, '.RDS'))
 saveRDS(paleo_locs, paste0('data/', 'pollen_locs_', version, '.RDS'))
 
-
-
-#ANDRIA'S EXTRA CODE - TRYING TO FIND SITE UNDER GLACIER
-
-dat_array = readRDS('data/pollen_dat_1.0.RDS')
-locs = readRDS('data/pollen_locs_1.0.RDS')
-taxa.keep = readRDS('data/pollen_taxa_1.0.RDS')
-
-dat_lgm = dat_array[,,22]
-colnames(dat_lgm) = c(taxa.keep,"Other")
-dat = data.frame(locs, dat_lgm)
-dat = dat[!is.na(dat[,3]),]
-
-test_sub = test[which((test$cut==22)&(test$lat>49)),]
-
-
-na_shp <- readOGR("data/map-data/NA_States_Provinces_Albers.shp", "NA_States_Provinces_Albers")
-na_shp <- sp::spTransform(na_shp, proj)
-cont_shp <- subset(na_shp,
-                   (NAME_0 %in% c("United States of America", "Mexico", "Canada")))
-lake_shp <- readOGR("data/map-data/Great_Lakes.shp", "Great_Lakes")
-lake_shp <- sp::spTransform(lake_shp, proj)
-
-p <- ggplot() +
-  geom_point(data = dat, aes(x = x, y = y), col = "red") +
-  geom_path(data = cont_shp, aes(x = long, y = lat, group = group)) +
-  geom_path(data = lake_shp, aes(x = long, y = lat, group = group)) #+
-  scale_y_continuous(limits = ylim) +
-  scale_x_continuous(limits = xlim) +
-  theme_classic() +
-  theme(axis.ticks = element_blank(),
-        axis.text = element_blank(),
-        axis.title = element_blank(),
-        line = element_blank(),
-        plot.title = element_text(size = 12)) +
-  coord_equal()
-print(p)

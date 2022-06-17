@@ -35,7 +35,7 @@ rescale <- 1e3
 # scale locations so distance values aren't too large (from 1m to 100km units)
 locs_scaled <- locs/rescale
 N_locs_dat = nrow(locs_scaled)
-X <- matrix(rep(1, N_locs_dat),N_locs_dat, 1)
+X <- matrix(rep(1, N_locs_dat), N_locs_dat, 1)
 
 params <- default_params()
 params$n_adapt <- 2000
@@ -88,7 +88,7 @@ d <- ncol(y)
 Y = y
 X = as.matrix(X)
 locs = as.matrix(locs_scaled)
-n_cores = 1L
+n_cores = 20L
 n_chain = 1
 
 for (n in 1:dim(Y)[1]){
