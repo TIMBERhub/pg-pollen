@@ -151,7 +151,7 @@ dat_scores %>%
     geom_col() +
     facet_wrap(~ score, scales = "free")
 
-cut_off <- 200000
+cut_off <- 300000
 p_WAIC <- dat_scores %>%
     mutate(WAIC = WAIC - cut_off) %>%
     ggplot(aes(x = model, y = WAIC)) +
